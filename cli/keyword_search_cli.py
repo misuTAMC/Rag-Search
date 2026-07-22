@@ -1,74 +1,71 @@
 import argparse
-import json
-import string
-from nltk.stem import PorterStemmer
+from search_utils import text_processing
+from keyword_search import InvertedIndex
 
-def clean_and_tokenize(text: str) -> list:
-    lower_text = text.lower()
-    punc_text = lower_text.translate(str.maketrans("", "", string.punctuation))
-    return punc_text.split()
+def build_command():
+    print("Building inverted index...")
+    indexer = InvertedIndex()
+    indexer.build()
+    indexer.save()
+    print("Index saved to disk successfully.")
 
-def load_stopwords(file_path: str) -> list:
-    try:
-        with open(file_path, "r", encoding="utf-8") as file:
-            raw_words = file.read().splitlines()
-        
-        processed_stopwords = []
-        for word in raw_words:
-            tokens = clean_and_tokenize(word)
-            if tokens:
-                processed_stopwords.append(tokens[0]) # Lấy từ đã làm sạch
-        return processed_stopwords
-    except FileNotFoundError:
-        return []
-
-STOPWORDS = load_stopwords("data/stopwords.txt")
-stemmer = PorterStemmer()
-
-
-def text_processing(text: str) -> list:
-    tokens = clean_and_tokenize(text)
-    tokens = [word for word in tokens if word not in STOPWORDS]
-    clean_tokens =[stemmer.stem(word) for word in tokens]
-    return clean_tokens
-    
-# 4. Thuật toán tìm kiếm từ khóa khớp một phần
-def keyword_searching(movies: list, query: str, max_results: int = 5) -> list:
-    query_tokens = text_processing(query)
-    if not query_tokens:
-        return []
-
-    results = []
-    for movie in movies:
-        title_tokens = text_processing(movie['title'])
-        has_match = any(q_token in t_token for q_token in query_tokens for t_token in title_tokens)
-        
-        if has_match:
-            results.append(movie)
-    return results[:max_results]
+def tokenize_single_term(term:str)->str:
+    tokens=text_processing(term)
+    if len(tokens)!=1:
+        raise ValueError(f"Expected exactly one token for term '{term}', got {len(tokens)}")
+    return tokens[0]
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
+    subparsers.add_parser("build", help="Build the inverted index and save it to disk")
+
     search_parser = subparsers.add_parser("search", help="Search movies using keywords")
     search_parser.add_argument("query", type=str, help="Search query")
 
+    tf_parser=subparsers.add_parser("tf",help="Get term frequency for a given document term")
+    tf_parser.add_argument("doc_id",type=int,help="The ID of the document")
+    tf_parser.add_argument("term",type=str,help="The term to look up")
+    
     args = parser.parse_args()
 
     match args.command:
+        case "build":
+            build_command()
+              
         case "search":
             print(f"Searching for: {args.query}")
+            indexer = InvertedIndex()
             
-            with open("data/movies.json", "r", encoding="utf-8") as file:
-                movies_data = json.load(file)
+            try:
+                indexer.load()
+            except FileNotFoundError as e:
+                print(f"Error: {e}")
+                return 
+            match_movies = indexer.search(args.query, max_results=5)#list
             
-            movie_list = movies_data.get('movies', []) if isinstance(movies_data, dict) else movies_data
-                
-            match_movies = keyword_searching(movie_list, args.query, max_results=5)
+            if not match_movies:
+                print("No movies found matching your query.")
+                return
+
             for index, movie in enumerate(match_movies, start=1):
-                print(f"{index}. {movie['title']}")
+                print(f"{index}. [{movie['id']}] {movie['title']}")
+        
+        case "tf":
+            indexer=InvertedIndex()
+            
+            try:
+                indexer.load()
                 
+                target_token=tokenize_single_term(args.term)
+                
+                frequency=indexer.get_tf(args.doc_id,target_token)
+                print(f"The {target_token} appears {frequency} times.")
+            except ValueError as e:
+                print(f"Error : {e}")
+            except FileNotFoundError as e:
+                print(f"Error : {e}")
         case _:
             parser.print_help()
 
