@@ -1,26 +1,24 @@
 import argparse
-from search_utils import text_processing
-from keyword_search import InvertedIndex
+from lib.search_utils import text_processing
+from lib.keyword_search import InvertedIndex
+from lib.keyword_search import (
+    search_command,
+    build_command,
+    load_command,
+    tf_command,
+    # tokenize_single_term,
+    idf_command,
+    tfidf_command,
+)
+import math 
 
-def build_command():
-    print("Building inverted index...")
-    indexer = InvertedIndex()
-    indexer.build()
-    indexer.save()
-    print("Index saved to disk successfully.")
-
-def tokenize_single_term(term:str)->str:
-    tokens=text_processing(term)
-    if len(tokens)!=1:
-        raise ValueError(f"Expected exactly one token for term '{term}', got {len(tokens)}")
-    return tokens[0]
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     subparsers.add_parser("build", help="Build the inverted index and save it to disk")
-
+    subparsers.add_parser("load",help="Load the movies list from a dist")
     search_parser = subparsers.add_parser("search", help="Search movies using keywords")
     search_parser.add_argument("query", type=str, help="Search query")
 
@@ -28,44 +26,35 @@ def main() -> None:
     tf_parser.add_argument("doc_id",type=int,help="The ID of the document")
     tf_parser.add_argument("term",type=str,help="The term to look up")
     
+    idf_parser=subparsers.add_parser("idf",help="Get inverse document frequency for a given document term")
+    idf_parser.add_argument("term",type=str,help="The term to look up")
+    
+    tfidf_parser=subparsers.add_parser("tfidf",help="Calculating the TF-IDF score of a term in a given document")
+    tfidf_parser.add_argument("doc_id",type=int,help="The ID of the document")
+    tfidf_parser.add_argument("term",type=str,help="The term to look up")
+    
+    
     args = parser.parse_args()
 
     match args.command:
         case "build":
             build_command()
-              
+        case "load":
+            load_command()
+            
         case "search":
-            print(f"Searching for: {args.query}")
-            indexer = InvertedIndex()
-            
-            try:
-                indexer.load()
-            except FileNotFoundError as e:
-                print(f"Error: {e}")
-                return 
-            match_movies = indexer.search(args.query, max_results=5)#list
-            
-            if not match_movies:
-                print("No movies found matching your query.")
-                return
-
-            for index, movie in enumerate(match_movies, start=1):
-                print(f"{index}. [{movie['id']}] {movie['title']}")
+            search_command(args.query)
         
         case "tf":
-            indexer=InvertedIndex()
-            
-            try:
-                indexer.load()
+            tf_score=tf_command(args.term,args.doc_id)
+            print(f"The [{args.term}] appears {tf_score} times.")
+        case "idf":
+            idf_score=idf_command(args.term)
+            print(f"Inverse document frequency of '{args.term}': {idf_score:.2f}")
+        case "tfidf":
+            tfidf_score=tfidf_command(args.term,args.doc_id)
+            print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tfidf_score:.2f}")
                 
-                target_token=tokenize_single_term(args.term)
-                
-                frequency=indexer.get_tf(args.doc_id,target_token)
-                print(f"The {target_token} appears {frequency} times.")
-            except ValueError as e:
-                print(f"Error : {e}")
-            except FileNotFoundError as e:
-                print(f"Error : {e}")
         case _:
             parser.print_help()
 

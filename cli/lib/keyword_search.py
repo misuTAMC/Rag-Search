@@ -1,9 +1,9 @@
 import os
 import json
 import pickle
-from search_utils import text_processing
+from lib.search_utils import text_processing
 from collections import Counter
-
+import math
 def load_movie():
     with open("data/movies.json", "r", encoding="utf-8") as file:
         movies_data = json.load(file)
@@ -29,6 +29,11 @@ class InvertedIndex:
         "description": "A young lion prince..."
     }
 }
+    self.term_frequencies = {
+        4651:{
+            "cat":1,"play":2,...
+        }
+    }
     '''
     def __init__(self):
         self.index = {}
@@ -51,8 +56,8 @@ class InvertedIndex:
         return sorted(doc_ids)
 
     def build(self):
-        movies = load_movie()
-        for movie in movies:
+        movies_list = load_movie()
+        for movie in movies_list:
             doc_id = movie['id']
             self.docmap[doc_id] = movie
             
@@ -95,7 +100,9 @@ class InvertedIndex:
         matched_ids = set()
         for token in query_tokens:
             # Lấy ra set các ID phim chứa token này
-            matched_ids.update(self.index.get(token, set()))#type <class 'set'> {1,2,3,...}
+            token_key_from_film=self.index.get(token,set())
+            
+            matched_ids.update(token_key_from_film)#type <class 'set'> {4561,2,256,...}
             
         results = []
         for doc_id in sorted(matched_ids):
@@ -115,21 +122,106 @@ class InvertedIndex:
         return 0
         
     def load(self):
-        """Nạp dữ liệu index và docmap từ đĩa. Ném ra lỗi nếu file không tồn tại."""
         cache_dir = 'cache'
-        # Đề bài yêu cầu dùng đúng đường dẫn này
         index_path = f"{cache_dir}/index.pkl"
         docmap_path = f"{cache_dir}/docmap.pkl"
         term_frequencies_path=f"{cache_dir}/term_frequencies.pkl"
         
-        if not os.path.exists(index_path) or not os.path.exists(docmap_path):
+        if not os.path.exists(index_path) or not os.path.exists(docmap_path) or not os.path.exists(term_frequencies_path):
             raise FileNotFoundError("Index files do not exist. Please run 'build' first.")
             
         with open(index_path, "rb") as file:
-            self.index = pickle.load(file)
-            
+            self.index = pickle.load(file) 
         with open(docmap_path, "rb") as file:
             self.docmap = pickle.load(file)
         with open(term_frequencies_path,"rb") as file:
             self.term_frequencies=pickle.load(file)
+
+def build_command():
+    print("Building inverted index...")
+    indexer = InvertedIndex()
+    indexer.build()
+    indexer.save()
+    print("Index saved to disk successfully.")
+def load_command():
+    indexer=InvertedIndex()
+    indexer.load()
+    print("The movie list successfully loaded")
+    
+def search_command(query):
+    print(f"Searching for: {query}")
+    indexer = InvertedIndex()
+    
+    try:
+        indexer.load()
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        return 
+    match_movies = indexer.search(query, max_results=5)#list
+    
+    if not match_movies:
+        print("No movies found matching your query.")
+        return
+
+    for index, movie in enumerate(match_movies, start=1):
+        print(f"{index}. [{movie['id']}] {movie['title']}")
+
+def tf_command(term,doc_id):
+    indexer=InvertedIndex()
+            
+    try:
+        indexer.load()
         
+        target_token=tokenize_single_term(term)
+        
+        frequency=indexer.get_tf(doc_id,target_token)
+        
+        return frequency
+    
+    except ValueError as e:
+        print(f"Error : {e}")
+    except FileNotFoundError as e:
+        print(f"Error : {e}")
+    return 0
+    
+def idf_command(term):
+    indexer=InvertedIndex()
+    try:
+        indexer.load()
+        
+        target_token=tokenize_single_term(term)
+        
+        total_doc_count=len(indexer.docmap)
+        
+        term_match_doc_count=len(indexer.index.get(target_token,set()))
+        
+        idf_score=math.log((total_doc_count + 1) / (term_match_doc_count + 1))
+        return idf_score
+    except ValueError as e:
+        print(f"Error : {e}")
+    except FileNotFoundError as e:
+        print(f"Error : {e}")    
+    return 0  
+
+def tfidf_command(term,doc_id):
+    indexer=InvertedIndex()
+    try:
+        indexer.load()
+        tf_score=tf_command(term,doc_id)
+        idf_score=idf_command(term)
+        
+        tfidf_score=tf_score*idf_score
+        
+        return tfidf_score
+        
+    except ValueError as e:
+        print(f"Error : {e}")
+    except FileNotFoundError as e:
+        print(f"Error : {e}")
+    return 0
+    
+def tokenize_single_term(term:str)->str:
+    tokens=text_processing(term)
+    if len(tokens)!=1:
+        raise ValueError(f"Expected exactly one token for term '{term}', got {len(tokens)}")
+    return tokens[0]
