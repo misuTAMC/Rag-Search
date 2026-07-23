@@ -1,26 +1,29 @@
 import string
 from nltk.stem import PorterStemmer
 
+PUNCTUATION_TABLE = str.maketrans("", "", string.punctuation)
+
 def clean_and_tokenize(text: str) -> list:
     lower_text = text.lower()
-    punc_text = lower_text.translate(str.maketrans("", "", string.punctuation))
+    punc_text = lower_text.translate(PUNCTUATION_TABLE)
     return punc_text.split()
 
-def load_stopwords(file_path: str) -> list:
+def load_stopwords(file_path: str) -> set:
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             raw_words = file.read().splitlines()
         
-        processed_stopwords = []
+        processed_stopwords = set()
         for word in raw_words:
             tokens = clean_and_tokenize(word)
             if tokens:
-                processed_stopwords.append(tokens[0])
+                processed_stopwords.add(tokens[0]) 
         return processed_stopwords
     except FileNotFoundError:
-        return []
+        return set()
 
-# Khởi tạo các tài nguyên dùng chung
+
+
 STOPWORDS = load_stopwords("data/stopwords.txt")
 stemmer = PorterStemmer()
 
