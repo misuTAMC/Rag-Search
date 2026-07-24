@@ -133,10 +133,11 @@ class InvertedIndex:
         doc_frequency = len(self.index.get(term, set()))
         
         try:
-            bm25_score = math.log((N - doc_frequency + 0.5) / (doc_frequency + 0.5) + 1)
-            return bm25_score
+            bm25_idf_score = math.log((N - doc_frequency + 0.5) / (doc_frequency + 0.5) + 1)
+            return bm25_idf_score
         except ValueError:   
             return 0.0
+        
     def get_bm25_tf(self,doc_id,term,k1=BM25_K1,b=BM25_B):
         
         raw_tf=self.get_tf(doc_id,term)
@@ -150,10 +151,52 @@ class InvertedIndex:
         else:
             length_norm=1-b+b*(doc_length/avg_doc_length)
         
-        tf_component = (raw_tf * (k1 + 1)) / (raw_tf + k1 * length_norm)
+        bm25_tf_score = (raw_tf * (k1 + 1)) / (raw_tf + k1 * length_norm)
         
-        return tf_component
+        return bm25_tf_score
+    
+    def bm25(self,doc_id:int,term:str)->float:
+        bm25tf_score=self.get_bm25_tf(doc_id,term)
+        bm25idf_score=self.get_bm25_idf(term)
+        bm25_score=bm25tf_score*bm25idf_score
         
+        return bm25_score
+    
+    def bm25_search(self,query,limit):
+        query_tokens = text_processing(query)
+        if not query_tokens:
+            return []
+        
+        scores={}
+        for token in query_tokens:
+            matched_doc_ids = self.index.get(token, set())
+            for doc_id in matched_doc_ids:
+                word_score=self.bm25(doc_id,token)
+                
+                if doc_id not in scores:
+                    scores[doc_id]=0.0
+                scores[doc_id]+=word_score
+                '''scores.items()-->[(doc_id,score),...]-->item[1]<=>score'''
+        sorted_results=sorted(scores.items(),key=lambda item:item[1],reverse=True)
+        
+        final_results=[]
+        
+        for doc_id,score in sorted_results[:limit]:
+            if doc_id in self.docmap:
+                film_name=self.docmap[doc_id].get('title','')
+                final_results.append(
+                    {
+                        "doc_id":doc_id,
+                        "title":film_name,
+                        "score":score
+                    }
+                )
+        return final_results
+                
+                
+                
+                
+                
 
 # ==================== CLI COMMAND FUNCTIONS ====================
 
@@ -162,7 +205,23 @@ def bm25_idf_command(term: str) -> float:
     indexer.load()
     token_term = tokenize_single_term(term)
     return indexer.get_bm25_idf(token_term)
-def bm25_tf_command(doc_id:int,term:str,k1:float=BM25_K1,b:float=BM25_K1)->float:
+def bm25search_command(query:str,limit:int=5):
+    print(f"Searching for: {query}")
+    indexer = InvertedIndex()
+    try:
+        indexer.load()
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        return 
+    
+    match_movies = indexer.bm25_search(query,limit)
+    if not match_movies:
+        print("No movies found matching your query.")
+        return
+    for index, movie in enumerate(match_movies, start=1):
+        print(f"{index}. ({movie['doc_id']}) {movie['title']} - Score: {movie['score']:.2f}")
+    
+def bm25_tf_command(doc_id:int,term:str,k1:float=BM25_K1,b:float=BM25_B)->float:
     indexer=InvertedIndex()
     indexer.load()
     
@@ -170,7 +229,6 @@ def bm25_tf_command(doc_id:int,term:str,k1:float=BM25_K1,b:float=BM25_K1)->float
     bm25_tf_score=indexer.get_bm25_tf(doc_id,token_term,k1,b)
     
     return bm25_tf_score
-    
     
 def build_command():
     print("Building inverted index...")

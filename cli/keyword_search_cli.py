@@ -1,6 +1,6 @@
 import argparse
 from lib.search_utils import text_processing
-from lib.keyword_search import BM25_B, InvertedIndex
+from lib.keyword_search import BM25_B, InvertedIndex, bm25search_command
 from lib.keyword_search import (
     search_command,
     build_command,
@@ -48,6 +48,9 @@ def main() -> None:
     bm25_tf_parser.add_argument("k1", type=float, nargs='?', default=BM25_K1, help="Tunable BM25 K1 parameter")
     bm25_tf_parser.add_argument("b", type=float, nargs='?', default=BM25_B, help="Tunable BM25 b parameter")
     
+    bm25search_parser = subparsers.add_parser("bm25search", help="Search movies using full BM25 scoring")
+    bm25search_parser.add_argument("query", type=str, help="Search query")
+    
     args = parser.parse_args()
 
     match args.command:
@@ -55,10 +58,13 @@ def main() -> None:
             build_command()
         case "load":
             load_command()
-            
+        
         case "search":
             search_command(args.query)
-        
+            
+        case "bm25search":
+            bm25search_command(args.query)
+            
         case "tf":
             try:
                 tf_score = tf_command(args.term, args.doc_id)

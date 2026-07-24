@@ -1,6 +1,8 @@
 import pickle
 import json
 from collections import Counter,defaultdict
+
+from lib.keyword_search import InvertedIndex
 #*************************************
 # Open the file in binary mode
 # with open('cache/docmap.pkl','rb') as file:
@@ -47,4 +49,8 @@ from collections import Counter,defaultdict
 # print(f"term_frequencies : {term_frequencies}")
 #*************************************
 # print(len({"1":1,"2":2}))
+#*************************************
+# indexer=InvertedIndex()
+# indexer.load()
+# print(indexer.index.get('hero'))
 #*************************************
