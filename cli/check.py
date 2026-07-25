@@ -54,3 +54,4 @@ from lib.keyword_search import InvertedIndex
 # indexer.load()
 # print(indexer.index.get('hero'))
 #*************************************
+print([1,2,3]+[2,3,4])
