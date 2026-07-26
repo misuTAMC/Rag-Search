@@ -54,4 +54,13 @@ from lib.keyword_search import InvertedIndex
 # indexer.load()
 # print(indexer.index.get('hero'))
 #*************************************
-print([1,2,3]+[2,3,4])
+# print([1,2,3]+[2,3,4])
+#*************************************
+text="hello how are you, i am find thank you, and you"
+token_text=text.split()
+chunk_bottle=[]
+for i in range(0,len(token_text),2):
+    sentence = " ".join(token_text[i : i + 2]) 
+    chunk_bottle.append(sentence[:])
+print(chunk_bottle)       
+        
