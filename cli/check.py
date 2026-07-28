@@ -1,7 +1,10 @@
 import pickle
 import json
+import re
 from collections import Counter,defaultdict
+from pathlib import Path
 
+from lib.semantic_search import semantic_chunking
 from lib.keyword_search import InvertedIndex
 #*************************************
 # Open the file in binary mode
@@ -56,11 +59,24 @@ from lib.keyword_search import InvertedIndex
 #*************************************
 # print([1,2,3]+[2,3,4])
 #*************************************
-text="hello how are you, i am find thank you, and you"
-token_text=text.split()
-chunk_bottle=[]
-for i in range(0,len(token_text),2):
-    sentence = " ".join(token_text[i : i + 2]) 
-    chunk_bottle.append(sentence[:])
-print(chunk_bottle)       
+# text="hello how are you ? I'm find thank you,and you. I'm find,thanks.See yah!"
+# token_text=text.split()
+# chunk_bottle=[]
+# chunk_size=3
+# overlap=2
+# for i in range(0,len(token_text),chunk_size-overlap):
+#     sentence = " ".join(token_text[i : i + chunk_size]) 
+#     chunk_bottle.append(sentence[:])
+# print(chunk_bottle)    
+#*************************************
+# text="First sentence here. Second sentence here. Third sentence here. Fourth sentence here"
+# # words=re.split(r"(?<=[.!?])\s+", text, maxsplit=0, flags=0)
+# # print(words)
+# chunks=semantic_chunking(text,2,1)
+# print(chunks)
+#*************************************
+
+# file_path=Path("cache/index.pkl")
+# if file_path.exists():
+#     print("The path exists.")
         

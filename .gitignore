@@ -2,3 +2,11 @@
 .env
 .DS_Store
 /data/
+
+cache/chunk_embeddings.npy
+cache/chunk_metadata.json
+cache/doc_lengths.pkl
+cache/docmap.pkl
+cache/index.pkl
+cache/movie_embedddingmovie_embeddings.npy
+cache/term_frequencies.pkl
