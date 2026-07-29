@@ -32,3 +32,18 @@ def text_processing(text: str) -> list:
     tokens = [word for word in tokens if word not in STOPWORDS]
     clean_tokens = [stemmer.stem(word) for word in tokens]
     return clean_tokens
+
+def format_search_result(doc_id:int,
+                         title:str,
+                         document:str,
+                         score:float,metadata:dict,
+                         SCORE_PRECISION:int=4):
+    return {
+    "id": doc_id,
+    "title": title,
+    "document": document[:100],
+    "score": round(score, SCORE_PRECISION),
+    "metadata": metadata or {},
+}
+    
+    

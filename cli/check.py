@@ -3,7 +3,7 @@ import json
 import re
 from collections import Counter,defaultdict
 from pathlib import Path
-
+import numpy as np
 from lib.semantic_search import semantic_chunking
 from lib.keyword_search import InvertedIndex
 #*************************************
@@ -79,4 +79,6 @@ from lib.keyword_search import InvertedIndex
 # file_path=Path("cache/index.pkl")
 # if file_path.exists():
 #     print("The path exists.")
-        
+#*************************************
+obj=np.load('cache/chunk_embeddings.npy')
+print(obj.shape) #(72909, 384)

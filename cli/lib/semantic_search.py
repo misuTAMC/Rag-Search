@@ -5,6 +5,13 @@ import numpy as np
 import os
 import re
 from lib.keyword_search import load_movie
+from lib.search_utils import format_search_result
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
+
 CACHE_DIR="cache"
 
 
@@ -34,7 +41,7 @@ class SemanticSearch:
         self.embeddings=self.model.encode(movie_strings,show_progress_bar=True,convert_to_numpy=True)
         
         os.makedirs(CACHE_DIR,exist_ok=True)
-        np.save(CACHE_DIR+'/movie_embeddings.npy',self.embeddings)
+        np.save(os.path.join(CACHE_DIR, 'movie_embeddings.npy'), self.embeddings)
         with open(CACHE_DIR+"/chunk_metadata.json", "w",encoding='utf-8') as f:
                     json.dump(self.document_map, f,ensure_ascii=False)
         return self.embeddings
@@ -130,7 +137,10 @@ class ChunkedSemanticSearch(SemanticSearch):
             
         metadata_path = os.path.join(CACHE_DIR, "chunk_metadata.json")
         with open(metadata_path, "w",encoding="utf-8") as f:
-            json.dump({"chunks": self.chunk_metadata, "total_chunks": len(all_chunks)}, f, indent=2)
+            json.dump({
+                "chunks": self.chunk_metadata, 
+                "total_chunks": len(all_chunks)
+                }, f, indent=2)
         
         return self.chunk_embeddings
     
@@ -140,26 +150,126 @@ class ChunkedSemanticSearch(SemanticSearch):
             self.document_map={doc["id"]:doc for doc in documents}
             
             chunk_embedding_path = os.path.join(CACHE_DIR, "chunk_embeddings.npy")
-            chunk_metadata_path = os.path.join(CACHE_DIR, "chunk_metadata.json")
+            chunk_metadata_path  = os.path.join(CACHE_DIR, "chunk_metadata.json")
             
             
             if os.path.isfile(chunk_embedding_path) and os.path.isfile(chunk_metadata_path):
-                self.chunk_embeddings=np.load(chunk_metadata_path)
+                self.chunk_embeddings=np.load(chunk_embedding_path)
                 with open(chunk_metadata_path, 'r', encoding='utf-8') as file:
                     cached_data=json.load(file)
                     
                     self.chunk_metadata=cached_data.get("chunks",[])
             
-                return self.chunk_embeddings
+                # ĐỌC FILE VECTOR LÊN ĐỂ KIỂM TRA ĐỘ DÀI MA TRẬN
+                self.chunk_embeddings = np.load(chunk_embedding_path)
+                
+                # ĐIỀU KIỆN BẢO HIỂM: Kiểm tra xem số lượng vector đã lưu trong cache 
+                # có TRÙNG KHỚP với trường total_chunks trong file JSON hay không.
+                # Nếu thầy cô đổi file dữ liệu, hai con số này hoặc số lượng phim sẽ lệch nhau ngay!
+                if len(self.chunk_embeddings) == cached_data.get("total_chunks", 0):
+                    self.chunk_metadata = cached_data.get("chunks", [])
+                    return self.chunk_embeddings
+                else:
+                    print("Cache mismatch detected (Dữ liệu đầu vào đã thay đổi). Rebuilding...")
+            
+            return self.build_chunk_embeddings(self.documents)
+                
+    def search_chunks(self,query:str,limit:int=10):
+        
+        
+        if self.chunk_embeddings is None or self.chunk_metadata is None:
+            raise ValueError("No chunk embeddings loaded. Call `load_or_create_chunk_embeddings` first.")
+        
+        
+        embed_query=self.generate_embedding(query)
+        chunk_scores=[]
+        
+        for idx,chunk_embedding in enumerate(self.chunk_embeddings):
+            cosine_score=cosine_similarity(embed_query,chunk_embedding)
+            extract_metadata=self.chunk_metadata[idx]
+            chunk_scores.append(
+                {
+                    'chunk_idx':extract_metadata['chunk_idx'],
+                    'movie_idx':extract_metadata['movie_idx'],
+                    'score':float(cosine_score) 
+                }
+            )
+        # 4. GOM NHÓM (Aggregation): Tạo dictionary rỗng ánh xạ movie_idx -> best chunk score
+        best_movie_scores={}
+        for item in chunk_scores:
+            m_idx=item['movie_idx']
+            if m_idx not in best_movie_scores:
+                best_movie_scores[m_idx]=item
             else:
-                return self.build_chunk_embeddings(self.documents)
+                if item['score']>best_movie_scores[m_idx]['score']:
+                    best_movie_scores[m_idx]=item
+        # 5. SẮP XẾP: Chuyển dict thành list và xếp giảm dần theo trường 'score'
+        best_movie_list=list(best_movie_scores.values())#.values() để lấy danh sách Object dict
+        best_movie_list.sort(key=lambda x: x['score'],reverse=True)
+        
+        
+        top_movie_scores=best_movie_list[:limit]
+        final_results = []
+        SCORE_PRECISION=4
+        for item in top_movie_scores:
+            movie_position=item['movie_idx']
+            score=item['score']
+            
+            doc=self.documents[movie_position]
+            
+            doc_id=doc.get('id',-1)
+            title=doc.get('title','')
+            description=doc.get('description','')
+            
+            metadata=doc.get('metadata',{})
+            
+            final_results.append(format_search_result(
+                doc_id,
+                title,
+                description,
+                score,
+                metadata,
+                SCORE_PRECISION
+            ))
+            
+        return final_results
                 
-        # def search_chunks(self,query:str,limit:int=10):
-        #     embed_query=self.generate_embedding(query)
-        #     chunk_scores=[]
-        #     for chunk_embedding in self.chunk_embeddings:
                 
- #*===============Function=======================           
+                
+                
+            
+            
+            
+                
+ #*===============Function=======================
+
+def search_chunked_command(args):
+    console = Console()
+    
+    movies = load_movie()
+    search_engine = ChunkedSemanticSearch()
+    search_engine.load_or_create_chunk_embeddings(movies)
+    results = search_engine.search_chunks(query=args.query, limit=args.limit) 
+    
+    console.print(f"\n[bold cyan]🔍 Semantic Search Results for:[/bold cyan] [italic yellow]'{args.query}'[/italic yellow]\n")
+
+    for i, res in enumerate(results, start=1):
+        title_text = Text()
+        title_text.append(f"{i}. ", style="bold green")
+        title_text.append(res['title'], style="bold white")
+        title_text.append(f" (Score: {res['score']:.4f})", style="bold yellow")
+        
+        body_text = Text(f"{res['document']}...", style="dim italic")
+        
+        panel = Panel(
+            body_text,
+            title=title_text,
+            title_align="left",
+            border_style="cyan",
+            padding=(0, 2)
+        )
+        console.print(panel)
+
 def search(query,limit=5):
     ss=SemanticSearch()
     movies=load_movie()
