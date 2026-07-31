@@ -163,7 +163,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                 # ĐỌC FILE VECTOR LÊN ĐỂ KIỂM TRA ĐỘ DÀI MA TRẬN
                 self.chunk_embeddings = np.load(chunk_embedding_path)
                 
-                # ĐIỀU KIỆN BẢO HIỂM: Kiểm tra xem số lượng vector đã lưu trong cache 
+                # ĐIỀU KIỆN : Kiểm tra xem số lượng vector đã lưu trong cache 
                 # có TRÙNG KHỚP với trường total_chunks trong file JSON hay không.
                 # Nếu thầy cô đổi file dữ liệu, hai con số này hoặc số lượng phim sẽ lệch nhau ngay!
                 if len(self.chunk_embeddings) == cached_data.get("total_chunks", 0):
@@ -194,7 +194,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                     'score':float(cosine_score) 
                 }
             )
-        # 4. GOM NHÓM (Aggregation): Tạo dictionary rỗng ánh xạ movie_idx -> best chunk score
+        #GOM NHÓM (Aggregation): Tạo dictionary rỗng ánh xạ movie_idx -> best chunk score
         best_movie_scores={}
         for item in chunk_scores:
             m_idx=item['movie_idx']
@@ -203,7 +203,7 @@ class ChunkedSemanticSearch(SemanticSearch):
             else:
                 if item['score']>best_movie_scores[m_idx]['score']:
                     best_movie_scores[m_idx]=item
-        # 5. SẮP XẾP: Chuyển dict thành list và xếp giảm dần theo trường 'score'
+        #SẮP XẾP: Chuyển dict thành list và xếp giảm dần theo trường 'score'
         best_movie_list=list(best_movie_scores.values())#.values() để lấy danh sách Object dict
         best_movie_list.sort(key=lambda x: x['score'],reverse=True)
         
@@ -242,6 +242,12 @@ class ChunkedSemanticSearch(SemanticSearch):
             
                 
  #*===============Function=======================
+    
+def embeded_chunked_command():
+    documents=load_movie()
+    chunked_search=ChunkedSemanticSearch()
+    chunk_embeddings=chunked_search.load_or_create_chunk_embeddings(documents)
+    print(f"Generated {len(chunk_embeddings)} chunked embeddings")
 
 def search_chunked_command(args):
     console = Console()
@@ -361,11 +367,18 @@ def chunk_text(text: str, chunk_size: int = 200, overlap: int = 0):
         print(f"{index}. {chunk}")
 
 def semantic_chunking(text:str,max_chunk_size:int=4,overlap:int=0):
-    sentences=re.split(r"(?<=[.!?])\s+", text)
+    new_text=text.strip()
+    if not new_text:
+        return []
     
-    #*remove cac chuoi rong if exists
-    sentences=[s.strip() for s in sentences if s.strip()]
+    sentences=re.split(r"(?<=[.!?])\s+", new_text)
     
+    #*remove cac chuoi  co space thua o start and end if exists
+    if len(sentences) == 1 and not new_text[-1] in ['.', '!', '?']:
+        sentences = [new_text]
+    else:
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
     if not sentences:
         return []
     if overlap<0:
@@ -376,13 +389,16 @@ def semantic_chunking(text:str,max_chunk_size:int=4,overlap:int=0):
     step = max_chunk_size - overlap
     for i in range(0, len(sentences), step):
         chunk = " ".join(sentences[i : i + max_chunk_size])
-        chunks.append(chunk)
+        
+        cleaned_chunk = chunk.strip()
+        if cleaned_chunk:
+            chunks.append(cleaned_chunk)
 
         # Điều kiện dừng: Nếu vị trí kết thúc của chunk hiện tại đã bao phủ hết từ cuối cùng
         # thì dừng luôn, không để vòng lặp chạy tiếp tạo ra các chunk thừa phía sau
         if i + max_chunk_size >= len(sentences):
             break
-
+        
     return chunks
 
 def semantic_chunk_text(text: str, max_chunk_size: int = 4, overlap: int = 0):

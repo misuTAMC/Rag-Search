@@ -17,8 +17,8 @@ CACHE_DIR='cache'
 
 class InvertedIndex:
     def __init__(self):
-        self.index = {}
-        self.docmap = {}
+        self.index = {} #"token a":set(id cac bo phim co token a)
+        self.docmap = {}# dict(id film : film dict object)
         
         self.term_frequencies = {}
         self.doc_lengths={}
@@ -198,7 +198,7 @@ class InvertedIndex:
                 
                 
 
-# ==================== CLI COMMAND FUNCTIONS ====================
+#* ==================== CLI COMMAND FUNCTIONS ====================
 
 def bm25_idf_command(term: str) -> float:
     indexer = InvertedIndex()

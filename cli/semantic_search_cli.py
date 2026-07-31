@@ -5,7 +5,8 @@ from lib.semantic_search import (
     ChunkedSemanticSearch,
     chunk_text,
     embed_query_text,
-    embed_text, 
+    embed_text,
+    embeded_chunked_command, 
     search,
     search_chunked_command,
     semantic_chunk_text,
@@ -47,6 +48,8 @@ def main() -> None:
     search_chunked_parser.add_argument("query", type=str, help="The search query string")
     search_chunked_parser.add_argument("--limit", type=int, default=5, help="Number of results to return (default: 5)")
 
+    
+    
     args=parser.parse_args()
     
     
@@ -56,10 +59,7 @@ def main() -> None:
             search_chunked_command(args)
             
         case "embed_chunks":
-            documents=load_movie()
-            chunked_search=ChunkedSemanticSearch()
-            chunk_embeddings=chunked_search.load_or_create_chunk_embeddings(documents)
-            print(f"Generated {len(chunk_embeddings)} chunked embeddings")
+            embeded_chunked_command()
         
         case "semantic_chunk":
             semantic_chunk_text(args.text,args.max_chunk_size,args.overlap)

@@ -1,6 +1,7 @@
 import pickle
 import json
 import re
+import os
 from collections import Counter,defaultdict
 from pathlib import Path
 import numpy as np
@@ -8,10 +9,10 @@ from lib.semantic_search import semantic_chunking
 from lib.keyword_search import InvertedIndex
 #*************************************
 # Open the file in binary mode
-# with open('cache/docmap.pkl','rb') as file:
+# with open('cache/index.pkl','rb') as file:
 #     data = pickle.load(file)
 
-# # View the contents
+# View the contents
 # print(data)
 
 # matched_ids = set()
@@ -80,5 +81,29 @@ from lib.keyword_search import InvertedIndex
 # if file_path.exists():
 #     print("The path exists.")
 #*************************************
-obj=np.load('cache/chunk_embeddings.npy')
-print(obj.shape) #(72909, 384)
+# obj=np.load('cache/chunk_embeddings.npy')
+# print(obj.shape) #(72909, 384)
+#*************************************
+
+# text=" "
+# words=re.split(r"(?<=[.!?])\s+", text, maxsplit=0, flags=0)
+# print(words)
+# chunks=semantic_chunking(text,2,1)
+# print(chunks)
+#*************************************
+
+# inverted_index=InvertedIndex()
+# if not os.path.exists(inverted_index.index_path):
+#     inverted_index.build()
+#     inverted_index.save()
+# else:
+#     inverted_index.load()
+    
+# doc_info = inverted_index.docmap.get(2)
+
+# if doc_info is not None:
+#     dest = doc_info["description"]
+#     print(dest[:100])
+# else:
+#     dest = "Không tìm thấy mô tả" # Hoặc xử lý logic khác tùy bạn
+#     print("Cảnh báo: Không tìm thấy tài liệu có ID là 2 trong docmap!")
