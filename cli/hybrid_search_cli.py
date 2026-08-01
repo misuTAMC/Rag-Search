@@ -2,37 +2,57 @@ import argparse
 import json
 import os
 from lib.keyword_search import load_movie
-from lib.hybrid_search import HybridSearch, reciprocal_rank_fusion_search_command, weighted_search_command 
+from lib.hybrid_search import (
+    HybridSearch, 
+    reciprocal_rank_fusion_search_command, 
+    weighted_search_command, 
+    normalize_scores_command
+)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hybrid Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # ---- Đăng ký lệnh 'weighted' ----
-    weighted_parser = subparsers.add_parser("weighted", help="Run a weighted hybrid search")
+    weighted_parser = subparsers.add_parser("weighted_search", help="Run a weighted hybrid search")
     weighted_parser.add_argument("query", type=str, help="The search query string")
     weighted_parser.add_argument("--alpha", type=float, default=0.5, help="Weight for semantic search (0.0 to 1.0)")
     weighted_parser.add_argument("--limit", type=int, default=5, help="Number of results to return")
 
-    # ---- Đăng ký lệnh 'rrf' ----
-    rrf_parser = subparsers.add_parser("rrf", help="Run a Reciprocal Rank Fusion (RRF) hybrid search")
+    rrf_parser = subparsers.add_parser("rrf_search", help="Run a Reciprocal Rank Fusion (RRF) hybrid search")
     rrf_parser.add_argument("query", type=str, help="The search query string")
     rrf_parser.add_argument("-k", type=int, default=60, help="Smoothing constant for RRF calculation")
     rrf_parser.add_argument("--limit", type=int, default=10, help="Number of results to return")
-    
+    rrf_parser.add_argument("--enhance",type=str,choices=["spell"],hekp="Query enhancement method, e.g., spell correction")
+    normalize_parser = subparsers.add_parser("normalize", help="Normalize the embeddings and save to a new file")
+    normalize_parser.add_argument("input_list_score", type=float,nargs="*", help="List of scores to normalize")
     args = parser.parse_args()
 
     docs = load_movie()
     searcher = HybridSearch(docs)
 
     match args.command:
-        case "weighted":
+        case "weighted_search":
+            #
             weighted_search_command(args,searcher)
-        case "rrf":
-            reciprocal_rank_fusion_search_command(args,searcher)
+        case "rrf_search":
+            if args.enhance == "spell":
+                # Implement spell correction logic here
+                # For now, just print a message
+                print(f"Spell correction is not implemented yet. Proceeding with the original query: '{args.query}'")
+            else:
+                print(f"Running RRF search with the original query: '{args.query}'")
+                reciprocal_rank_fusion_search_command(args,searcher)
+        case "normalize":
+            normalize_scores_command(args)
 
         case _:
             parser.print_help()
 
 if __name__ == "__main__":
     main()
+"""
+Ex                              Alpha   Reason
+Exact match	"The Revenant"	    0.8	    Title search needs keywords
+Conceptual	"family movies"	    0.2	    Meaning matters more
+Mixed	    "2015 comedies"	    0.5	    Both year AND concept
+"""

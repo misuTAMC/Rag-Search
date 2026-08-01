@@ -51,10 +51,11 @@ class HybridSearch:
         (1 - alpha): Trọng số cho BM25 Keyword Search
         """
         # Lấy dư kết quả (limit * 3) để tăng khả năng intersection between 2 approachs
-        fetch_limit = limit * 3
+        fetch_limit = limit * 500
         bm25_res = self._bm25_search(query, limit=fetch_limit)
         dense_res = self._dense_search(query, limit=fetch_limit)
-
+        if not bm25_res and not dense_res:
+            return []
         # Tạo bản đồ id -> doc để lấy thông tin chi tiết tài liệu ở       
         all_docs = {}
         
@@ -62,7 +63,7 @@ class HybridSearch:
             d_id=doc.get("doc_id") 
             movie_obj=self.inverted_index.docmap.get(d_id)
             description=movie_obj["description"] if movie_obj is not None else "" 
-            metadata=self.inverted_index.docmap.get("metadata",{})
+            metadata=movie_obj.get("metadata",{}) if movie_obj is not None else {}
     
 
             all_docs[d_id]={
@@ -73,32 +74,40 @@ class HybridSearch:
                 "metadata": metadata,
             }
         for doc in dense_res:
-            d_id=doc.get('id')
-            all_docs[d_id]=doc
+            d_id = doc.get('id')
+            all_docs[d_id] = {
+                "id": d_id,
+                "title": doc.get('title'),
+                "document": doc.get('document'),
+                "metadata": doc.get('metadata', {}),
+            }
+
             
 
-        # Normalization point from 0.0 đến 1.0 (Min-Max Scaling dựa trên Rank)
-        def get_rank_scores(results,doc_id):
-            scores = {}
-            n = len(results)
-            if n == 0: return scores
-            if n == 1:
-                scores[results[0][doc_id]] = 1.0
-                return scores
-            for rank, doc in enumerate(results):
-                # Hạng đầu tiên (rank=0) -> score = 1.0; Hạng cuối (rank=n-1) -> score = 0.0
-                scores[doc[doc_id]] = (n - 1 - rank) / (n - 1)
-            return scores
+        def get_normalized_scores(results,doc_id):
+            if not results:
+                return {}
+            # Lấy danh sách điểm
+            scores = [doc.get('score', 0.0) for doc in results]
+            min_score = min(scores)
+            max_score = max(scores)
+            if min_score == max_score:
+                return {doc[doc_id]: 1.0 for doc in results}  # Nếu tất cả điểm giống nhau, trả về 1.0 cho tất cả
+            normalized_scores = {
+                doc[doc_id]:(doc.get('score', 0.0) - min_score) / (max_score - min_score)
+                for doc in results
+            }
+            return normalized_scores
 
-        bm25_scores = get_rank_scores(bm25_res,"doc_id")
-        dense_scores = get_rank_scores(dense_res,"id")
+        bm25_scores = get_normalized_scores(bm25_res,"doc_id")
+        dense_scores = get_normalized_scores(dense_res,"id")
 
         # Tính điểm tổng hợp có trọng số
         combined_scores = {}
         for doc_id in all_docs.keys():
             s_bm25 = bm25_scores.get(doc_id, 0.0)
             s_dense = dense_scores.get(doc_id, 0.0)
-            combined_scores[doc_id] = (alpha * s_dense) + ((1 - alpha) * s_bm25)
+            combined_scores[doc_id] = (alpha * s_bm25) + ((1 - alpha) * s_dense)
 
         sorted_ids = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:limit]
         
@@ -115,7 +124,7 @@ class HybridSearch:
         Tìm kiếm kết hợp bằng thuật toán Reciprocal Rank Fusion (RRF).
         k: Hằng số làm mượt (ngăn các tài liệu đứng đầu thao túng quá mức kết quả, mặc định = 60)
         """
-        fetch_limit = limit * 3
+        fetch_limit = limit * 500
         bm25_res = self._bm25_search(query, limit=fetch_limit)
         dense_res = self._dense_search(query, limit=fetch_limit)
 
@@ -125,8 +134,7 @@ class HybridSearch:
             d_id=doc.get("doc_id") 
             movie_obj=self.inverted_index.docmap.get(d_id)
             description=movie_obj["description"] if movie_obj is not None else "" 
-            metadata=self.inverted_index.docmap.get("metadata",{})
-    
+            metadata=movie_obj.get("metadata",{}) if movie_obj is not None else {}
 
             all_docs[d_id]={
                 "id": d_id,
@@ -136,21 +144,23 @@ class HybridSearch:
                 "score":0.0
             }
         for doc in dense_res:
-            d_id=doc.get('id')
-            all_docs[d_id]=doc
+            d_id = doc.get('id')
+            all_docs[d_id] = {
+                "id": d_id,
+                "title": doc.get('title'),
+                "document": doc.get('document'),
+                "metadata": doc.get('metadata', {}),
+            }
             
         rrf_scores = {}
 
-        # Cộng điểm RRF từ nhánh BM25
         for rank, doc in enumerate(bm25_res):
             doc_id = doc['doc_id']
-            # Vị trí hạng thực tế là rank + 1 (vì rank xuất phát từ 0)
-            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + (1.0 / (k + rank + 1))
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + (1.0 / (k + rank))
 
-        # Cộng dồn điểm RRF từ nhánh Semantic (Dense)
         for rank, doc in enumerate(dense_res):
             doc_id = doc['id']
-            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + (1.0 / (k + rank + 1))
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + (1.0 / (k + rank))
 
         sorted_ids = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)[:limit]
         final_results = []
@@ -163,8 +173,29 @@ class HybridSearch:
 
 
 #* ==================== CLI COMMAND FUNCTIONS ====================
+def normalize_scores(scores: list[float]) -> list[float]:
+    if not scores:
+        return []
+    min_score = min(scores)
+    max_score = max(scores)
+    if min_score == max_score:
+        return [1.0] * len(scores)  # Nếu tất cả điểm giống nhau, trả về 1.0 cho tất cả
+    return [round((score - min_score) / (max_score - min_score), 4) for score in scores]
 
+def normalize_scores_command(args):
+    console = Console()
+    if args.input_list_score is None or len(args.input_list_score) == 0:
+        console.print("[bold red]Error:[/bold red] No scores provided for normalization.")
+        return
+    input_list_score = args.input_list_score
+    if not isinstance(input_list_score, list) or not all(isinstance(x, (int, float)) for x in input_list_score):
+        console.print("[bold red]Error:[/bold red] The input must be a list of numeric scores.")
+        return
 
+    normalized_scores = normalize_scores(input_list_score)
+    
+    console.print(f"\n[bold cyan]Normalized Scores:[/bold cyan] {normalized_scores}\n")
+    
 def weighted_search_command(args,searcher):
     console = Console()
     results = searcher.weighted_search(args.query, alpha=args.alpha, limit=args.limit)    
@@ -207,3 +238,4 @@ def reciprocal_rank_fusion_search_command(args,searcher):
             padding=(0, 2)
         )
         console.print(panel)
+        
