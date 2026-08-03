@@ -6,6 +6,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from lib.llm import (correct_spelling,
+                     rewrite_query,
+                     expand_query,
+                     rerank_results)
 
 class HybridSearch:
     def __init__(self, documents: list[dict]) -> None:
@@ -120,6 +124,7 @@ class HybridSearch:
         return final_results
 
     def rrf_search(self, query: str, k: int = 60, limit: int = 10) -> list[dict]:
+        
         """
         Tìm kiếm kết hợp bằng thuật toán Reciprocal Rank Fusion (RRF).
         k: Hằng số làm mượt (ngăn các tài liệu đứng đầu thao túng quá mức kết quả, mặc định = 60)
@@ -168,8 +173,14 @@ class HybridSearch:
             final_doc = all_docs[doc_id].copy()
             final_doc['score'] = round(final_score, 4) # Lưu điểm RRF đã làm tròn
             final_results.append(final_doc)
-            
+        
         return final_results
+'''
+[{'id': 1771, 'title': 'Paddington', 'document': 'Deep in the rainforests of Peru, a young bear lives peacefully with his Aunt Lucy and Uncle Pastuzo,', 'metadata': {}, 'score': 0.0333}, 
+{'id': 1354, 'title': 'Murder She Said', 'document': 'This is based on the Agatha Christie book "4:50 from Paddington" and the opening locale is Paddingto', 'metadata': {}, 'score': 0.0325}, 
+{'id': 2833, 'title': "It Couldn't Happen Here", 'document': 'In the early morning, dancers are warming up on an English beach (Clacton-On-Sea.Essex), and Neil Te', 'metadata': {}, 'score': 0.032}]
+'''
+
 
 
 #* ==================== CLI COMMAND FUNCTIONS ====================
@@ -217,16 +228,47 @@ def weighted_search_command(args,searcher):
             padding=(0, 2)
         )
         console.print(panel)
-def reciprocal_rank_fusion_search_command(args,searcher):
+def reciprocal_rank_fusion_search_command(args,searcher,enhance=None,rerank_method=None):
     console = Console()
-    results = searcher.rrf_search(args.query, k=args.k, limit=args.limit)    
+    match args.enhance:
+        case "spell":
+            
+            enhanced_query = correct_spelling(args.query)
+            print(f"Enhanced query (spell): '{args.query}' -> '{enhanced_query}'\n")
+            args.query = enhanced_query
+        case "rewrite":
+            enhanced_query = rewrite_query(args.query)
+            print(f"Enhanced query (rewrite): '{args.query}' -> '{enhanced_query}'\n")
+            args.query = enhanced_query
+        case "expand":
+            enhanced_query = expand_query(args.query)
+            print(f"Enhanced query (expand): '{args.query}' -> '{enhanced_query}'\n")
+            args.query = enhanced_query
+        case _:
+            # No enhancement applied
+            pass
+    
+    if getattr(args, 'rerank_method', None) == "individual":
+        fetch_limit = args.limit * 5
+        raw_results = searcher.rrf_search(args.query, k=args.k, limit=fetch_limit)
+        results = rerank_results(args.query, raw_results)
+    else:
+        results = searcher.rrf_search(args.query, k=args.k, limit=args.limit)
+            
+            
+            
     console.print(f"\n[bold cyan]🔍 Running Reciprocal Rank Fusion Hybrid Search for:[/bold cyan] [italic yellow]'{args.query}'[/italic yellow] with k = [italic yellow]'{args.k}'[/italic yellow]and limit = [italic yellow]'{args.limit}'[/italic yellow]...\n")
 
-    for i, res in enumerate(results, start=1):
+    final_results = results[:args.limit] 
+    for i, res in enumerate(final_results, start=1):
         title_text = Text()
         title_text.append(f"{i}. ", style="bold green")
         title_text.append(res['title'], style="bold white")
-        title_text.append(f" (Score: {res['score']:.4f})", style="bold yellow")
+        
+        if 'rerank_score' in res:
+            title_text.append(f" (RRF Score: {res['score']:.4f}, LLM Score: {res['rerank_score']:.1f})", style="bold yellow")
+        else:
+            title_text.append(f" (Score: {res['score']:.4f})", style="bold yellow")
         
         body_text = Text(f"{res['document']}...", style="dim italic")
         

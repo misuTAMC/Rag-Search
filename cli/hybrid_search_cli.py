@@ -8,6 +8,11 @@ from lib.hybrid_search import (
     weighted_search_command, 
     normalize_scores_command
 )
+import sys
+# Tự động tìm đường dẫn thư mục gốc và nạp vào danh sách tra cứu của Python
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from cli.lib.llm import correct_spelling
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hybrid Search CLI")
@@ -22,9 +27,14 @@ def main() -> None:
     rrf_parser.add_argument("query", type=str, help="The search query string")
     rrf_parser.add_argument("-k", type=int, default=60, help="Smoothing constant for RRF calculation")
     rrf_parser.add_argument("--limit", type=int, default=10, help="Number of results to return")
-    rrf_parser.add_argument("--enhance",type=str,choices=["spell"],hekp="Query enhancement method, e.g., spell correction")
+    rrf_parser.add_argument("--enhance",type=str,choices=["spell","rewrite","expand"],help="Query enhancement method, e.g., spell correction")
+    rrf_parser.add_argument("--rerank-method",type=str,choices=["individual"],help="Reranking method for RRF search, e.g., individual reranking")
+    
+    
     normalize_parser = subparsers.add_parser("normalize", help="Normalize the embeddings and save to a new file")
     normalize_parser.add_argument("input_list_score", type=float,nargs="*", help="List of scores to normalize")
+    
+    
     args = parser.parse_args()
 
     docs = load_movie()
@@ -32,16 +42,11 @@ def main() -> None:
 
     match args.command:
         case "weighted_search":
-            #
-            weighted_search_command(args,searcher)
+            weighted_search_command(args,searcher,)
+            
         case "rrf_search":
-            if args.enhance == "spell":
-                # Implement spell correction logic here
-                # For now, just print a message
-                print(f"Spell correction is not implemented yet. Proceeding with the original query: '{args.query}'")
-            else:
-                print(f"Running RRF search with the original query: '{args.query}'")
-                reciprocal_rank_fusion_search_command(args,searcher)
+            reciprocal_rank_fusion_search_command(args, searcher)
+
         case "normalize":
             normalize_scores_command(args)
 
