@@ -1,12 +1,12 @@
 import os
 from lib.keyword_search import InvertedIndex
 from lib.semantic_search import ChunkedSemanticSearch
-
+from sentence_transformers import CrossEncoder
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from lib.llm import (correct_spelling,
+from lib.llm import (batch_rerank_results, correct_spelling,
                      rewrite_query,
                      expand_query,
                      rerank_results)
@@ -184,6 +184,17 @@ class HybridSearch:
 
 
 #* ==================== CLI COMMAND FUNCTIONS ====================
+def cross_encoder_rerank(document_pairs: list[tuple[str, str]]) -> list[float]:
+    cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2") 
+    raw_scores=cross_encoder.predict(document_pairs)  
+    
+    # if hasattr(raw_scores, "tolist"):
+    #     scores: list[float] = raw_scores.tolist()
+    # else:
+    #     scores = [float(s) for s in raw_scores] 
+
+    return raw_scores.tolist()
+
 def normalize_scores(scores: list[float]) -> list[float]:
     if not scores:
         return []
@@ -252,7 +263,28 @@ def reciprocal_rank_fusion_search_command(args,searcher,enhance=None,rerank_meth
         fetch_limit = args.limit * 5
         raw_results = searcher.rrf_search(args.query, k=args.k, limit=fetch_limit)
         results = rerank_results(args.query, raw_results)
+    elif getattr(args, 'rerank_method', None) == "batch":
+        fetch_limit = args.limit * 5
+        raw_results = searcher.rrf_search(args.query,k=args.k,limit=fetch_limit)
+        doc_list_strings = [f"ID: {doc['id']}, Title: {doc['title']}, Document: {doc['document']}" for doc in raw_results]
+        print(f"Re-ranking top {args.limit} results using batch method...")
+        ranked_ids = batch_rerank_results(args.query, doc_list_strings)
+        results = [doc for doc in raw_results if doc['id'] in ranked_ids]
+        results.sort(key=lambda x: ranked_ids.index(x['id']))
+        for doc in results:
+            doc['batch_rank'] = ranked_ids.index(doc['id']) + 1  
+    elif getattr(args, 'rerank_method', None) == "cross_encoder":
+        fetch_limit = args.limit * 5
+        raw_results = searcher.rrf_search(args.query,k=args.k,limit=fetch_limit)
+        pairs=[(args.query, doc['document']) for doc in raw_results]
+        print(f"Re-ranking top {args.limit} results using cross-encoder method...")
+        pairs=[(args.query, f"{doc.get('title', '')} - {doc.get('document', '')}") for doc in raw_results]
+        ranked_ids = cross_encoder_rerank(pairs)
+        for idx, doc in enumerate(raw_results):
+            doc['cross_encoder_score'] = ranked_ids[idx]
+        results = sorted(raw_results, key=lambda x: x['cross_encoder_score'], reverse=True)[:args.limit]
     else:
+        print(f"Reciprocal Rank Fusion Results for '{args.query}' (k={args.k}):\n")
         results = searcher.rrf_search(args.query, k=args.k, limit=args.limit)
             
             
@@ -265,10 +297,17 @@ def reciprocal_rank_fusion_search_command(args,searcher,enhance=None,rerank_meth
         title_text.append(f"{i}. ", style="bold green")
         title_text.append(res['title'], style="bold white")
         
-        if 'rerank_score' in res:
-            title_text.append(f" (RRF Score: {res['score']:.4f}, LLM Score: {res['rerank_score']:.1f})", style="bold yellow")
-        else:
-            title_text.append(f" (Score: {res['score']:.4f})", style="bold yellow")
+        info_parts = []
+        
+        if 'batch_rank' in res:
+            info_parts.append(f"Batch Rank: {res['batch_rank']}")
+        elif 'rerank_score' in res:
+            info_parts.append(f"LLM Score: {res['rerank_score']:.1f}")
+        elif 'cross_encoder_score' in res:
+            info_parts.append(f"Cross-Encoder Score: {res['cross_encoder_score']:.4f}")
+        info_parts.append(f"RRF: {res['score']:.4f}")
+        
+        title_text.append(f" ({', '.join(info_parts)})", style="bold yellow")
         
         body_text = Text(f"{res['document']}...", style="dim italic")
         
@@ -280,4 +319,5 @@ def reciprocal_rank_fusion_search_command(args,searcher,enhance=None,rerank_meth
             padding=(0, 2)
         )
         console.print(panel)
+
         

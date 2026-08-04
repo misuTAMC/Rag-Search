@@ -28,7 +28,7 @@ def main() -> None:
     rrf_parser.add_argument("-k", type=int, default=60, help="Smoothing constant for RRF calculation")
     rrf_parser.add_argument("--limit", type=int, default=10, help="Number of results to return")
     rrf_parser.add_argument("--enhance",type=str,choices=["spell","rewrite","expand"],help="Query enhancement method, e.g., spell correction")
-    rrf_parser.add_argument("--rerank-method",type=str,choices=["individual"],help="Reranking method for RRF search, e.g., individual reranking")
+    rrf_parser.add_argument("--rerank-method",type=str,choices=["individual","batch","cross_encoder"],help="Reranking method for RRF search, e.g., individual reranking,batch reranking")
     
     
     normalize_parser = subparsers.add_parser("normalize", help="Normalize the embeddings and save to a new file")
