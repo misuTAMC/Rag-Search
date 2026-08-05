@@ -55,9 +55,9 @@ def call_openrouter(prompt: str, model_name: str = "google/gemma-4-26b-a4b-it:fr
         return ""
 
 
-def generate_content_hybrid(prompt: str, query: str, prefer_engine: str = "gemini") -> str:
+def generate_content_hybrid(prompt: str, query: str, prefer_engine: str = "gemini",**args) -> str:
     if "{query}" in prompt:
-        prompt = prompt.format(query=query)
+        prompt = prompt.format(query=query,**args)
 
     if prefer_engine == "gemini":
         res = call_gemini(prompt)
@@ -140,3 +140,88 @@ def batch_rerank_results(query: str, doc_list_strings: list[str]):
     except Exception as e:
         print(f"Error during batch reranking: {e}")
         return []
+def rag_answer(query: str, results_list: list[dict]) -> str:
+    if not results_list:
+        return ""
+        
+    with open(PROMPTS_PATH / "rag.md", "r", encoding='utf-8') as f:
+        prompt_template = f.read()
+        
+    doc_strings = []
+    for doc in results_list:
+        doc_strings.append(f"Title: {doc.get('title', '')} - Description: {doc.get('document', '')}")
+    docs_combined_str = "\n".join(doc_strings)
+    
+    formatted_prompt = prompt_template.format(query=query, docs=docs_combined_str)
+    try:
+        llm_response = generate_content_hybrid(
+            formatted_prompt,
+            query,
+            prefer_engine="gemini"
+        )
+        
+        return llm_response.strip()
+    except Exception as e:
+        print(f"Error during LLM Calling answers: {e}")
+        return ""
+
+def llm_summarization(query:str,results_list:list[dict])->str:
+    if not results_list:
+        return ""
+    with open(PROMPTS_PATH/"summarization.md","r",encoding="utf-8") as f:
+        prompt_template=f.read()
+    doc_strings=[]
+    for doc in results_list:
+            doc_strings.append(f"Title: {doc.get('title', '')} - Description: {doc.get('document', '')}")
+    docs_combined_str = "\n".join(doc_strings)
+    formatted_prompt = prompt_template.format(query=query, results=docs_combined_str)
+    try:
+        llm_response = generate_content_hybrid(
+            formatted_prompt,
+            query,
+            prefer_engine="gemini"
+        )
+        
+        return llm_response.strip()
+    except Exception as e:
+        print(f"Error during LLM Summarization : {e}")
+        return ""
+
+    
+    
+def llm_judge_results(query:str,results_list:list[dict])->list[int]:
+    
+    if not results_list:
+        return []
+    with open(PROMPTS_PATH / "llm_judge.md", "r", encoding="utf-8") as f:
+        prompt_template = f.read()
+    formatted_results_strings = []
+    for res in results_list:
+        formatted_results_strings.append(f"Title: {res.get('title', '')} - Document: {res.get('document', '')}")
+
+    formatted_results_combined = "\n".join(formatted_results_strings)
+
+    try:
+        llm_response = generate_content_hybrid(
+            prompt_template, 
+            query, 
+            prefer_engine="gemini", 
+            formatted_results=formatted_results_combined
+        )
+        
+        clean_response = llm_response.strip()
+        if clean_response.startswith("```"):
+            clean_response = clean_response.replace("```json", "").replace("```", "").strip()
+            
+        scores = json.loads(clean_response)
+        
+        if isinstance(scores, list) and len(scores) == len(results_list):
+            return [int(s) for s in scores]
+        
+        return [0] * len(results_list)
+        
+    except Exception as e:
+        print(f"Error during LLM Judge evaluation process: {e}")
+        return [0] * len(results_list)
+
+                

@@ -9,7 +9,6 @@ from lib.hybrid_search import (
     normalize_scores_command
 )
 import sys
-# Tự động tìm đường dẫn thư mục gốc và nạp vào danh sách tra cứu của Python
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cli.lib.llm import correct_spelling
@@ -29,10 +28,11 @@ def main() -> None:
     rrf_parser.add_argument("--limit", type=int, default=10, help="Number of results to return")
     rrf_parser.add_argument("--enhance",type=str,choices=["spell","rewrite","expand"],help="Query enhancement method, e.g., spell correction")
     rrf_parser.add_argument("--rerank-method",type=str,choices=["individual","batch","cross_encoder"],help="Reranking method for RRF search, e.g., individual reranking,batch reranking")
-    
+    rrf_parser.add_argument("--evaluate",action="store_true",help="Use an LLM to evaluate the search results from 0 to 3")
     
     normalize_parser = subparsers.add_parser("normalize", help="Normalize the embeddings and save to a new file")
     normalize_parser.add_argument("input_list_score", type=float,nargs="*", help="List of scores to normalize")
+    
     
     
     args = parser.parse_args()

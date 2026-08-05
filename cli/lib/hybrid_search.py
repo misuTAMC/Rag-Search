@@ -9,7 +9,8 @@ from rich.text import Text
 from lib.llm import (batch_rerank_results, correct_spelling,
                      rewrite_query,
                      expand_query,
-                     rerank_results)
+                     rerank_results,
+                     llm_judge_results)
 
 class HybridSearch:
     def __init__(self, documents: list[dict]) -> None:
@@ -96,7 +97,7 @@ class HybridSearch:
             min_score = min(scores)
             max_score = max(scores)
             if min_score == max_score:
-                return {doc[doc_id]: 1.0 for doc in results}  # Nếu tất cả điểm giống nhau, trả về 1.0 cho tất cả
+                return {doc[doc_id]: 1.0 for doc in results}  # if all points are same, trả về 1.0 cho tất cả
             normalized_scores = {
                 doc[doc_id]:(doc.get('score', 0.0) - min_score) / (max_score - min_score)
                 for doc in results
@@ -106,7 +107,7 @@ class HybridSearch:
         bm25_scores = get_normalized_scores(bm25_res,"doc_id")
         dense_scores = get_normalized_scores(dense_res,"id")
 
-        # Tính điểm tổng hợp có trọng số
+        # Tính điểm tổng hợp có weight
         combined_scores = {}
         for doc_id in all_docs.keys():
             s_bm25 = bm25_scores.get(doc_id, 0.0)
@@ -263,6 +264,7 @@ def reciprocal_rank_fusion_search_command(args,searcher,enhance=None,rerank_meth
         fetch_limit = args.limit * 5
         raw_results = searcher.rrf_search(args.query, k=args.k, limit=fetch_limit)
         results = rerank_results(args.query, raw_results)
+        
     elif getattr(args, 'rerank_method', None) == "batch":
         fetch_limit = args.limit * 5
         raw_results = searcher.rrf_search(args.query,k=args.k,limit=fetch_limit)
@@ -273,6 +275,7 @@ def reciprocal_rank_fusion_search_command(args,searcher,enhance=None,rerank_meth
         results.sort(key=lambda x: ranked_ids.index(x['id']))
         for doc in results:
             doc['batch_rank'] = ranked_ids.index(doc['id']) + 1  
+            
     elif getattr(args, 'rerank_method', None) == "cross_encoder":
         fetch_limit = args.limit * 5
         raw_results = searcher.rrf_search(args.query,k=args.k,limit=fetch_limit)
@@ -283,15 +286,24 @@ def reciprocal_rank_fusion_search_command(args,searcher,enhance=None,rerank_meth
         for idx, doc in enumerate(raw_results):
             doc['cross_encoder_score'] = ranked_ids[idx]
         results = sorted(raw_results, key=lambda x: x['cross_encoder_score'], reverse=True)[:args.limit]
+    
     else:
         print(f"Reciprocal Rank Fusion Results for '{args.query}' (k={args.k}):\n")
         results = searcher.rrf_search(args.query, k=args.k, limit=args.limit)
             
+    if getattr(args,"evaluate",False):
+        final_results=results[:args.limit]   
+        
+        evaluation_scores=llm_judge_results(args.query,final_results) 
+        
+        print("\nEvaluation Report:")
+        for idx, (res, score) in enumerate(zip(final_results, evaluation_scores), start=1):
+            print(f"{idx}. {res['title']}: {score}/3")
             
-            
-    console.print(f"\n[bold cyan]🔍 Running Reciprocal Rank Fusion Hybrid Search for:[/bold cyan] [italic yellow]'{args.query}'[/italic yellow] with k = [italic yellow]'{args.k}'[/italic yellow]and limit = [italic yellow]'{args.limit}'[/italic yellow]...\n")
+    console.print(f"\n[bold cyan]Running Reciprocal Rank Fusion Hybrid Search for:[/bold cyan] [italic yellow]'{args.query}'[/italic yellow] with k = [italic yellow]'{args.k}'[/italic yellow]and limit = [italic yellow]'{args.limit}'[/italic yellow]...\n")
 
     final_results = results[:args.limit] 
+    
     for i, res in enumerate(final_results, start=1):
         title_text = Text()
         title_text.append(f"{i}. ", style="bold green")
