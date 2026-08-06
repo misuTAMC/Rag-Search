@@ -1,6 +1,6 @@
 
 
-from lib.llm import rag_answer,llm_summarization
+from lib.llm import rag_answer,llm_summarization,llm_citations,llm_qa
 
 
 from rich.console import Console
@@ -115,4 +115,102 @@ def llm_summarization_command(searcher, args):
     )
     
     console.print(summary_panel)
+    console.print("\n")
+
+
+def llm_citations_command(searcher, args):
+    console = Console()
+    
+    limit_val = getattr(args, 'limit', 5)
+    
+    console.print(f"\n[bold cyan]Citation RAG Pipeline:[/bold cyan] Generating verifiable answer for [italic yellow]'{args.query}'[/italic yellow]...")
+    
+    results_list = searcher.rrf_search(args.query, limit=limit_val)
+    
+    if not results_list:
+        console.print("[bold red]No search results found to analyze.[/bold red]")
+        return
+
+    context_table = Table(
+        title="Source Documents & Citation Map", 
+        title_style="bold dim cyan",
+        box=None,
+        show_header=True,
+        header_style="bold magenta"
+    )
+    context_table.add_column("Citation", style="bold yellow", width=12, justify="center")
+    context_table.add_column("Movie Title", style="bold white")
+    
+    for idx, film in enumerate(results_list, start=1):
+        context_table.add_row(f"[{idx}]", film['title'])
+        
+    console.print(context_table)
+    console.print("\n" + "─" * 60 + "\n") 
+
+    with Live(
+        Spinner("dots", text=Text(" LLM is analyzing facts and mapping citations...", style="italic green")),
+        console=console,
+        transient=True
+    ):
+        citation_text = llm_citations(args.query, results_list)
+
+    answer_panel = Panel(
+        Markdown(citation_text),
+        title="[bold green]Verified AI Answer[/bold green]",
+        title_align="left",
+        border_style="green",
+        padding=(1, 2),
+        expand=False
+    )
+    
+    console.print(answer_panel)
+    console.print("\n")
+
+
+def llm_question_answering_command(searcher, args):
+    console = Console()
+    
+    limit_val = getattr(args, 'limit', 5)
+    
+    console.print(f"\n[bold yellow]Chat Mode:[/bold yellow] Finding movies to answer: [italic white]'{args.query}'[/italic white]...")
+    
+    results_list = searcher.rrf_search(args.query, limit=limit_val)
+    
+    if not results_list:
+        console.print("[bold red] No movie context found to answer this question.[/bold red]")
+        return
+
+    context_table = Table(
+        title="HCMUS Movies Found for Chat Context", 
+        title_style="bold dim yellow",
+        box=None,
+        show_header=True,
+        header_style="bold magenta"
+    )
+    context_table.add_column("Source", style="dim", width=8, justify="center")
+    context_table.add_column("Movie Title", style="bold white")
+    
+    for idx, film in enumerate(results_list, start=1):
+        context_table.add_row(f"Film #{idx}", film['title'])
+        
+    console.print(context_table)
+    console.print("\n" + "─" * 60 + "\n")
+
+    with Live(
+        Spinner("dots", text=Text(" Agent is typing a response...", style="italic yellow")),
+        console=console,
+        transient=True
+    ):
+        qa_answer = llm_qa(args.query, results_list)
+
+    chat_panel = Panel(
+        Markdown(qa_answer),
+        title="[bold yellow]HCMUS Support Chat[/bold yellow]",
+        title_align="left",
+        border_style="yellow",
+        padding=(1, 2),
+        expand=False
+    )
+    
+    console.print(chat_panel)
     console.print("\n")

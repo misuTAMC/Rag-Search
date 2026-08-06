@@ -55,13 +55,11 @@ class HybridSearch:
         alpha: Trọng số cho Semantic Search (0.0 <= alpha <= 1.0)
         (1 - alpha): Trọng số cho BM25 Keyword Search
         """
-        # Lấy dư kết quả (limit * 3) để tăng khả năng intersection between 2 approachs
         fetch_limit = limit * 500
         bm25_res = self._bm25_search(query, limit=fetch_limit)
         dense_res = self._dense_search(query, limit=fetch_limit)
         if not bm25_res and not dense_res:
             return []
-        # Tạo bản đồ id -> doc để lấy thông tin chi tiết tài liệu ở       
         all_docs = {}
         
         for doc in bm25_res:
@@ -145,7 +143,7 @@ class HybridSearch:
             all_docs[d_id]={
                 "id": d_id,
                 "title": doc.get('title'),
-                "document": description[:100] ,
+                "document": description ,
                 "metadata": metadata,
                 "score":0.0
             }

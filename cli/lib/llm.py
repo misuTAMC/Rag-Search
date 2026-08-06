@@ -186,8 +186,58 @@ def llm_summarization(query:str,results_list:list[dict])->str:
     except Exception as e:
         print(f"Error during LLM Summarization : {e}")
         return ""
-
+def llm_citations(query:str,results_list:list[dict])->str:
+    if not results_list:
+        return "The results are empty!"
     
+    with open(PROMPTS_PATH/"citations.md",'r',encoding='utf-8') as f:
+        prompt_template=f.read()
+    doc_strings=[]
+    for doc in results_list:
+        doc_strings.append(f"Title: {doc.get('title', '')} - Description: {doc.get('document', '')}")
+    docs_combined_str = "\n".join(doc_strings)
+    formatted_prompt=prompt_template.format(
+        query=query,
+        documents=docs_combined_str
+    )
+    try:
+        llm_response=generate_content_hybrid(
+            prompt=formatted_prompt,
+            query=query,
+            prefer_engine='gemini'
+        )
+        
+        return llm_response.strip()
+    except Exception as e:
+        print(f"Error during LLM Citations : {e}")
+        return ""
+        
+def llm_qa(query:str,results_list:list[dict])->str:
+    if not results_list:
+        return "The results are empty!"
+    
+    with open(PROMPTS_PATH/"qa.md",'r',encoding='utf-8') as f:
+        prompt_template=f.read()
+    doc_strings=[]
+    for doc in results_list:
+        doc_strings.append(f"Title: {doc.get('title', '')} - Description: {doc.get('document', '')}")
+    docs_combined_str = "\n".join(doc_strings)
+    print(docs_combined_str)
+    formatted_prompt=prompt_template.format(
+        query=query,
+        context=docs_combined_str
+    )
+    try:
+        llm_response=generate_content_hybrid(
+            prompt=formatted_prompt,
+            query=query,
+            prefer_engine='gemini'
+        )
+        
+        return llm_response.strip()
+    except Exception as e:
+        print(f"Error during LLM Question-Answering : {e}")
+        return ""
     
 def llm_judge_results(query:str,results_list:list[dict])->list[int]:
     

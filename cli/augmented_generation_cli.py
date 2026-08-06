@@ -1,6 +1,10 @@
 import argparse
 
-from cli.lib.rag_llm_command import llm_summarization_command, rag_command
+from lib.rag_llm_command import (
+    llm_summarization_command, 
+    rag_command,
+    llm_citations_command,
+    llm_question_answering_command)
 from lib.hybrid_search import HybridSearch
 from lib.keyword_search import load_movie
 
@@ -23,6 +27,26 @@ def main() -> None:
         default=5,
         help="Number of search results to synthesize (default: 5)"
     )
+    citation_parser = subparsers.add_parser(
+        "citations", help="Perform citation-aware RAG search"
+    )
+    citation_parser.add_argument("query", type=str, help="Search query including citation")
+    citation_parser.add_argument(
+        "--limit", 
+        type=int, 
+        default=5, 
+        help="Number of results to return"
+    )
+    question_parser=subparsers.add_parser(
+        "question",help="Perform a conversational question-answering session"
+    )
+    question_parser.add_argument("query",type=str,help="The question you want to ask the chat agent")
+    question_parser.add_argument(
+            "--limit", 
+            type=int, 
+            default=5, 
+            help="Number of results to scan (default: 5)"
+        )
 
     args = parser.parse_args()
     docs = load_movie()
@@ -32,6 +56,10 @@ def main() -> None:
             rag_command(searcher,args)
         case "summarize":
             llm_summarization_command(searcher, args)
+        case "citations":
+            llm_citations_command(searcher, args)
+        case "question":
+            llm_question_answering_command(searcher,args)
         case _:
             parser.print_help()
 
