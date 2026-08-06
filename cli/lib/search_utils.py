@@ -3,7 +3,7 @@ from nltk.stem import PorterStemmer
 from pathlib import Path
 
 PROJECT_ROOT=Path(__file__).parent.parent.parent
-DATA_PATH=PROJECT_ROOT/"data"/"movies.json"
+DATA_PATH=PROJECT_ROOT/"data"/'movies.json'
 STOPWORDS_PATH=PROJECT_ROOT/"data"/"stopwords.txt"
 CACHE_DIR=PROJECT_ROOT/"cache"
 PROMPTS_PATH=PROJECT_ROOT/"cli"/"lib"/"prompts"

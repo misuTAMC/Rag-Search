@@ -40,7 +40,7 @@ def main() -> None:
     question_parser=subparsers.add_parser(
         "question",help="Perform a conversational question-answering session"
     )
-    question_parser.add_argument("query",type=str,help="The question you want to ask the chat agent")
+    question_parser.add_argument("question",type=str,help="The question you want to ask the chat agent")
     question_parser.add_argument(
             "--limit", 
             type=int, 

@@ -172,9 +172,9 @@ def llm_question_answering_command(searcher, args):
     
     limit_val = getattr(args, 'limit', 5)
     
-    console.print(f"\n[bold yellow]Chat Mode:[/bold yellow] Finding movies to answer: [italic white]'{args.query}'[/italic white]...")
+    console.print(f"\n[bold yellow]Chat Mode:[/bold yellow] Finding movies to answer: [italic white]'{args.question}'[/italic white]...")
     
-    results_list = searcher.rrf_search(args.query, limit=limit_val)
+    results_list = searcher.rrf_search(args.question, limit=limit_val)
     
     if not results_list:
         console.print("[bold red] No movie context found to answer this question.[/bold red]")
@@ -201,7 +201,7 @@ def llm_question_answering_command(searcher, args):
         console=console,
         transient=True
     ):
-        qa_answer = llm_qa(args.query, results_list)
+        qa_answer = llm_qa(args.question, results_list)
 
     chat_panel = Panel(
         Markdown(qa_answer),
