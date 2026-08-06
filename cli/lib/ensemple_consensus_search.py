@@ -33,7 +33,7 @@ def ensemble_consensus_search(query: str,
     
     try:
         bm25_results=hybrid_searcher._bm25_search(
-            query,limit=top_k*3,
+            query_to_use,limit=top_k*3,
         )
         for idx,doc in enumerate(bm25_results):
             doc_id=doc.get("id")
@@ -50,7 +50,7 @@ def ensemble_consensus_search(query: str,
         print(f"Error in BM25 SEARCH : {e}")
         
     try:
-        dense_results=hybrid_searcher._dense_search(query,limit=top_k*3)
+        dense_results=hybrid_searcher._dense_search(query_to_use,limit=top_k*3)
         for idx, doc in enumerate(dense_results):
             doc_id = doc.get("id")
             norm_score = 1.0 / (1 + idx)
