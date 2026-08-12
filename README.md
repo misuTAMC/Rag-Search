@@ -347,20 +347,3 @@ Chương trình dùng RRF, in chỉ số của từng query và trung bình `Pre
 └── uv.lock                          # Dependency lock file
 ```
 
-## Xử lý lỗi thường gặp
-
-| Hiện tượng | Cách xử lý |
-| --- | --- |
-| `FileNotFoundError: data/movies.json` | Thêm dataset theo phần [Chuẩn bị dữ liệu](#chuẩn-bị-dữ-liệu). |
-| Lần đầu chạy rất chậm | Model và embedding đang được tải/tạo cache; các lần sau nhanh hơn. |
-| Dataset đổi nhưng kết quả cũ | Xóa `cache/`, rồi chạy lại `keyword_search_cli.py build` hoặc semantic command. |
-| LLM không sinh câu trả lời | Kiểm tra `.env`, key API, quota và Internet. |
-| Image command lỗi | Kiểm tra path ảnh, định dạng ảnh Pillow hỗ trợ, và model CLIP đã tải xong. |
-| Import/module lỗi | Đảm bảo đang đứng ở root repo và dùng `uv run python cli/...` hoặc đã activate `.venv`. |
-
-## Ghi chú phát triển
-
-- Không đưa API key, `.env`, dataset riêng tư hoặc cache lớn lên GitHub.
-- Khi thay đổi prompt, chỉnh các file trong `cli/lib/prompts/`.
-- Khi thay đổi schema hoặc nội dung `movies.json`, hãy xóa `cache/` để tránh dùng vector/index cũ.
-- README này mô tả hành vi của source code hiện tại; các command chạy từ thư mục gốc repository.
