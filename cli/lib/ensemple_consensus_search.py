@@ -246,7 +246,7 @@ def ensemble_search_command(args):
                 padding=(1, 2)
             ))
             
-    # 3. NẾU KHÔNG BẬT FLAG EVALUATE, IN THEO BẢNG DANH SÁCH TOP 5 THÔ CŨ CỦA EM
+    # 3. NẾU KHÔNG BẬT FLAG EVALUATE, IN THEO BẢNG DANH SÁCH TOP 5 THÔ CŨ
     else:
         if top_matches:
             console.print(f"\n[bold green]Final Top 5 High-Precision Filtered Results:[/bold green]\n")
