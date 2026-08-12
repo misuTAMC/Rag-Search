@@ -120,9 +120,12 @@ def ensemble_consensus_search(query: str,
             doc['final_rerank_rank'] = idx
 
     return final_results[:top_k]
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+from rich.live import Live
+from rich.spinner import Spinner
 # Import hàm kiểm định từ file của em
 from lib.llm import llm_judge_results
 def ensemble_search_command(args):
@@ -133,7 +136,7 @@ def ensemble_search_command(args):
     enhance_method = getattr(args, 'enhance', None)
     rerank_method = getattr(args, 'rerank_method', None)
     
-    console.print(f"\n[bold gold3]KÍCH HOẠT MULTI-ENGINE ENSEMBLE CONSENSUS SEARCH[/bold gold3]")
+    console.print(f"\n[bold gold3]ACTIVATE MULTI-ENGINE ENSEMBLE CONSENSUS SEARCH[/bold gold3]")
     console.print(f"Query text: [italic yellow]'{args.query}'[/italic yellow]")
     if img_path: console.print(f"Query image: [italic magenta]'{img_path}'[/italic magenta]")
     if enhance_method: console.print(f"Enhancement Layer: [bold cyan]{enhance_method}[/bold cyan]")
@@ -177,9 +180,100 @@ def ensemble_search_command(args):
 
     if getattr(args, "evaluate", False) and top_matches:
         console.print("\n" + "─" * 60)
-        console.print("[bold yellow]Generating LLM Judge Evaluation Report for Final Pipeline Output...[/bold yellow]")
-        evaluation_scores = llm_judge_results(args.query, top_matches)
-        print("\nEvaluation Report:")
-        for i, (res, score) in enumerate(zip(top_matches, evaluation_scores), start=1):
-            print(f"{i}. {res['title']}: {score}/3")
+        
+        # Hiển thị Spinner chuyển động tinh tế trong lúc LLM Judge chấm điểm
+        with Live(
+            Spinner("arc", text=Text(" LLM Judge is calculating absolute relevance scores...", style="bold italic yellow")),
+            console=console,
+            transient=True
+        ):
+            evaluation_scores = llm_judge_results(args.query, top_matches)
+            
+        relevant_top_film = -1
+        best_movie = None
+        
+        # Duyệt qua bảng điểm để bốc ra bộ phim có score cao nhất của Giám khảo
+        for movie, score_raw in zip(top_matches, evaluation_scores):
+            score = int(score_raw)
+            # Ưu tiên lấy bộ phim có thứ hạng tìm kiếm cao hơn nếu có các bộ phim trùng điểm nhau
+            if score > relevant_top_film:
+                relevant_top_film = score
+                best_movie = movie
+                
+        # NẾU TÌM THẤY PHIM ĐẠT ĐIỂM SỐ LIÊN QUAN (> 0)
+        if best_movie and relevant_top_film > 0:
+            # Tự động thay đổi màu sắc Badge theo đẳng cấp điểm số (3/3: Cyan xanh ngọc, dưới 3: Vàng chanh)
+            badge_color = "turquoise2" if relevant_top_film == 3 else "green_yellow"
+            score_status = f"SCORE: {relevant_top_film}/3 EXCELLENT" if relevant_top_film == 3 else f"SCORE: {relevant_top_film}/3 RELEVANT"
+            
+            # Khởi tạo thanh tiêu đề Panel đa sắc Cyberpunk
+            title_text = Text()
+            title_text.append("DIRECT MATCHFOUND ", style="bold blink white on magenta")
+            title_text.append(f" {score_status} ", style=f"bold black on {badge_color}")
+            
+            # Tạo nội dung text chi tiết bên trong hộp
+            content_text = Text()
+            content_text.append(f"Movie Title: ", style="bold cyan")
+            content_text.append(f"{best_movie['title']}\n", style="bold white underline")
+            
+            content_text.append(f"Consensus Verification: ", style="bold dim white")
+            content_text.append(f"Verified by {best_movie['consensus_methods_count']} Engines (Rank Score: {best_movie['ensemble_rank_score']:.4f})\n", style="italic dim yellow")
+            
+            if 'cross_encoder_score' in best_movie:
+                content_text.append(f"Deep Attention Score: ", style="bold dim white")
+                content_text.append(f"{best_movie['cross_encoder_score']:.4f} (Cross-Encoder Optimized)\n", style="italic dim magenta")
+                
+            # Đổ ra TOÀN BỘ MÔ TẢ (Full Description) theo đúng ý em
+            content_text.append("\nFull Movie Description:\n", style="bold yellow")
+            content_text.append(f"\"{best_movie['description']}\"", style="italic gray70")
+            
+            # Đóng gói sản phẩm vào hộp Panel Rich Neon cao cấp
+            direct_answer_panel = Panel(
+                content_text,
+                title=title_text,
+                title_align="center",
+                border_style="turquoise2" if relevant_top_film == 3 else "green_yellow",
+                padding=(1, 3),
+                expand=False
+            )
+            console.print(direct_answer_panel)
+        else:
+            # Fallback an toàn nếu tất cả các phim đều bị chấm 0/3 (Không có phim nào khớp ngữ nghĩa)
+            console.print(Panel(
+                Text("⚠️ Sorry,Agent couldn't find any perfectly relevant movie in the database that matches your specific contextual request.", style="bold italic red", justify="center"),
+                title="[bold red]NO MATCHING FOUND[/bold red]",
+                border_style="red",
+                padding=(1, 2)
+            ))
+            
+    # 3. NẾU KHÔNG BẬT FLAG EVALUATE, IN THEO BẢNG DANH SÁCH TOP 5 THÔ CŨ CỦA EM
+    else:
+        if top_matches:
+            console.print(f"\n[bold green]Final Top 5 High-Precision Filtered Results:[/bold green]\n")
+            for idx, movie in enumerate(top_matches, start=1):
+                title_text = Text()
+                title_text.append(f"{idx}. ", style="bold green")
+                title_text.append(movie['title'], style="bold white")
+                
+                match_count = movie['consensus_methods_count']
+                title_text.append(f" (Matched in {match_count} Engines)", style="bold cyan" if match_count > 1 else "dim white")
+                
+                body_text = Text(f"Accumulated Position Score: {movie['ensemble_rank_score']:.4f} | Final Pipeline Rank: #{movie.get('final_rerank_rank', idx)}\n", style="bold yellow")
+                
+                if 'cross_encoder_score' in movie:
+                    body_text.append(f"Cross-Encoder Score: {movie['cross_encoder_score']:.4f}\n", style="bold magenta")
+                    
+                body_text.append(f"\n{movie['description'][:150]}...", style="dim italic")
+                
+                panel = Panel(
+                    body_text,
+                    title=title_text,
+                    title_align="left",
+                    border_style="gold3" if match_count >= 2 else "green",
+                    padding=(0, 2)
+                )
+                console.print(panel)
+        else:
+            console.print("[bold red]❌ No results found.[/bold red]")
+
     console.print("\n")
