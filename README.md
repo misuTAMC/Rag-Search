@@ -346,4 +346,6 @@ Chương trình dùng RRF, in chỉ số của từng query và trung bình `Pre
 ├── pyproject.toml                   # Python dependencies
 └── uv.lock                          # Dependency lock file
 ```
+## Ví dụ về sử dụng search
+<img width="1218" height="1085" alt="Ảnh màn hình 2026-08-12 lúc 07 46 52" src="https://github.com/user-attachments/assets/1bdb5a25-a1a1-4d7a-9376-41c5b496c1cc" />
 
