@@ -360,7 +360,9 @@ Chương trình dùng RRF, in chỉ số của từng query và trung bình `Pre
 ### **4.** 
 - nếu description không có thông tin quá rõ thì do LLM đã bị ép do prompt, chỉ dựa vào description để trả lời,nếu không đủ thì trả về không có thông tin tránh hallucination 
 <img width="1222" height="525" alt="Ảnh màn hình 2026-08-12 lúc 07 57 56" src="https://github.com/user-attachments/assets/9d67aff0-0d35-44d4-9fd3-592d933313c2" />
+
 ### **5.** 
 - nếu không nhớ tên phim mà chỉ có 1 bức ảnh đâu đó,ta có thể bỏ img vào để engine rewrite lại query 
-<img width="1217" height="69" alt="Ảnh màn hình 2026-08-12 lúc 08 06 40" src="https://github.com/user-attachments/assets/6205efc6-7381-4815-8c66-311e0788cc07" />
+<img width="1217" height="69" alt="Ảnh màn hình 2026-08-12 lúc 08 06 40" src="https://github.com/user-attachments/assets/6205efc6-7381-4815-8c66-311e0788cc07" />
+
 
