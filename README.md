@@ -347,5 +347,12 @@ Chương trình dùng RRF, in chỉ số của từng query và trung bình `Pre
 └── uv.lock                          # Dependency lock file
 ```
 ## Ví dụ về sử dụng search
+### 1.
 <img width="1218" height="1085" alt="Ảnh màn hình 2026-08-12 lúc 07 46 52" src="https://github.com/user-attachments/assets/1bdb5a25-a1a1-4d7a-9376-41c5b496c1cc" />
-
+### 2.
+<img width="1215" height="436" alt="Ảnh màn hình 2026-08-12 lúc 07 53 17" src="https://github.com/user-attachments/assets/9dc57d5c-53af-4d77-a86b-b7d16965dbc6" />
+### 3.
+<img width="1220" height="475" alt="Ảnh màn hình 2026-08-12 lúc 07 55 11" src="https://github.com/user-attachments/assets/0be1ab6c-493a-4b41-a6af-173ae93ec7a8" />
+### 4. 
+- nếu description không có thông tin quá rõ thì do LLM đã bị ép do prompt, chỉ dựa vào description để trả lời,nếu không đủ thì trả về không có thông tin tránh hallucination
+<img width="1222" height="525" alt="Ảnh màn hình 2026-08-12 lúc 07 57 56" src="https://github.com/user-attachments/assets/9d67aff0-0d35-44d4-9fd3-592d933313c2" />
