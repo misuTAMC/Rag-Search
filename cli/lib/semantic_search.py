@@ -76,7 +76,10 @@ class SemanticSearch:
         for doc, doc_emb in zip(self.documents, self.embeddings):
                 cosine_score = cosine_similarity(embed_query, doc_emb)
                 cosine_score_list.append((cosine_score, doc))
-                
+        #         [
+        #     (0.82, paddington_doc),
+        #     (0.14, matrix_doc),
+        #           ]
         
         cosine_score_list.sort(key=lambda x: x[0], reverse=True)
         
@@ -100,9 +103,10 @@ class ChunkedSemanticSearch(SemanticSearch):
         # 1. Populate self.documents and self.document_map
         self.documents = documents
         self.document_map = {doc["id"]: doc for doc in documents}
-            
         all_chunks=[]
         chunk_metadata=[]
+        # chunk_metadata[0]     # {"movie_idx": 0, "chunk_idx": 0, "total_chunks": 3}
+
                 
         for movie_idx,doc in enumerate(documents):
             if not doc.get("description"):
@@ -367,6 +371,8 @@ def chunk_text(text: str, chunk_size: int = 200, overlap: int = 0):
         print(f"{index}. {chunk}")
 
 def semantic_chunking(text:str,max_chunk_size:int=4,overlap:int=0):
+    # max_chunk_size: số câu tối đa được gom vào mỗi chunk.
+    # overlap: số câu cuối của một chunk được lặp lại ở chunk kế tiếp.
     new_text=text.strip()
     if not new_text:
         return []

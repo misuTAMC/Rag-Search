@@ -27,6 +27,12 @@ class InvertedIndex:
         self.index_path=os.path.join(CACHE_DIR,"index.pkl")
         self.docmap_path=os.path.join(CACHE_DIR,"docmap.pkl")
         self.term_frequencies_path=os.path.join(CACHE_DIR,"term_frequencies.pkl")
+            #         {
+            #     movie_id: Counter({
+            #         "bear": 3,
+            #         "london": 1
+            #     })
+            # }
     
 
     def __add_document(self, doc_id, text):

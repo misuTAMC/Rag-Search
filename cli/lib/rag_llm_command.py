@@ -17,7 +17,6 @@ def rag_command(searcher, args):
     console.print(f"\n[bold cyan]RAG Engine:[/bold cyan] Fetching context for [italic yellow]'{args.query}'[/italic yellow]...")
     
     results_list = searcher.rrf_search(args.query, limit=5)
-    
     context_table = Table(
         title="Retrieved Context (Top 5 Matches)", 
         title_style="bold dim cyan",
